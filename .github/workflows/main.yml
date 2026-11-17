@@ -1,0 +1,31 @@
+name: 镜像中转拉取 (无DockerHub)
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_name:
+        description: '要拉取的镜像全名(必须带tag)'
+        required: true
+        default: 'postgres:16'
+
+jobs:
+  pull_and_save:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Pull & Save & Compress
+        run: |
+          # 1. 海外服务器极速拉取
+          docker pull ${{ github.event.inputs.image_name }}
+          
+          # 2. 将镜像安全地打包并压缩成 tar.gz
+          SAFE_NAME=$(echo "${{ github.event.inputs.image_name }}" | tr '/:' '__')
+          docker save ${{ github.event.inputs.image_name }} | gzip > ${SAFE_NAME}.tar.gz
+          
+          # 3. 在控制台打印文件大小，方便你核对
+          ls -lh ${SAFE_NAME}.tar.gz
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.image_name }}
+          path: '*.tar.gz'
